@@ -1,0 +1,1202 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>THE Impact Rankings — UFF ODS Analytics</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+
+  <style>
+    :root {
+      --primary-color: #004a8e;
+      --primary-light: #0066c2;
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #212529;
+    }
+    body { font-family: 'Roboto', sans-serif; background: var(--bg-color); color: var(--text-main); padding-bottom: 40px; }
+    .app-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+      color: white; padding: 2rem 1rem; margin-bottom: 2rem;
+      box-shadow: 0 4px 10px rgba(0,74,142,0.2);
+    }
+    .app-header h1 { font-weight: 700; margin: 0; }
+    .app-header .subtitle { opacity: 0.9; font-weight: 300; font-size: 1.1rem; margin-top: 5px; }
+    .controls-card {
+      background: var(--card-bg); border-radius: 12px; padding: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05); margin-bottom: 24px;
+      border-left: 5px solid var(--primary-color);
+    }
+    .form-label { font-weight: 500; color: var(--primary-color); font-size: 0.9rem; margin-bottom: 4px; }
+    .form-select, .btn { border-radius: 8px; }
+    .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
+    .btn-primary:hover { background-color: var(--primary-light); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media(max-width: 1200px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .chart-card {
+      background: var(--card-bg); border-radius: 12px;
+      border: 1px solid rgba(0,0,0,0.05);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .chart-header { padding: 15px 20px; border-bottom: 1px solid #f0f0f0; background: #fafafa; }
+    .chart-title { font-weight: 700; color: var(--primary-color); font-size: 1rem; margin: 0; }
+    .chart-subtitle { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .chart-body { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; }
+    .stats-footer { background: #fdfdfd; border-top: 1px solid #eee; padding: 10px 15px; font-size: 0.8rem; color: #555; }
+    .stat-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; margin-left: 5px; }
+    .badge-sig { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    .badge-not-sig { background-color: #f5f5f5; color: #616161; border: 1px solid #e0e0e0; }
+    .trend-up { color: #2e7d32; font-weight: bold; }
+    .trend-down { color: #c62828; font-weight: bold; }
+    .no-data { display: flex; align-items: center; justify-content: center; height: 200px; color: #aaa; font-style: italic; }
+    footer { margin-top: 40px; text-align: center; font-size: 13px; color: #999; }
+    .ods-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: #e3f0fb; color: var(--primary-color); margin-left: 6px; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container-fluid px-4">
+    <h1><i class="bi bi-bar-chart-line-fill me-2"></i>THE Impact Rankings — UFF ODS Analytics</h1>
+    <div class="subtitle">Comparador de Métricas por ODS (2019–2023)</div>
+  </div>
+</header>
+
+<div class="container-fluid px-4">
+  <div class="controls-card">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label"><i class="bi bi-building"></i> Comparar UFF com:</label>
+        <select id="compareSelect" class="form-select">
+          <option value="">Selecione uma universidade...</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label"><i class="bi bi-award"></i> ODS:</label>
+        <select id="odsSelect" class="form-select">
+          <option value="all">Todos os ODS</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label"><i class="bi bi-calendar-range"></i> Período:</label>
+        <div class="input-group">
+          <select id="minYear" class="form-select"></select>
+          <span class="input-group-text bg-light text-muted">até</span>
+          <select id="maxYear" class="form-select"></select>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label"><i class="bi bi-graph-up"></i> Visualização:</label>
+        <div class="btn-group w-100" role="group">
+          <input type="radio" class="btn-check" name="chartType" id="typeLine" value="line" checked>
+          <label class="btn btn-outline-primary" for="typeLine"><i class="bi bi-bezier2"></i> Tendência</label>
+          <input type="radio" class="btn-check" name="chartType" id="typeBox" value="box">
+          <label class="btn btn-outline-primary" for="typeBox"><i class="bi bi-box-seam"></i> Boxplot</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label"><i class="bi bi-chat-left-text"></i> Rótulos:</label>
+        <div class="d-flex gap-2 mt-2 flex-wrap">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="annMode" id="annUff" value="uff" checked>
+            <label class="form-check-label" for="annUff">UFF</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="annMode" id="annBoth" value="both">
+            <label class="form-check-label" for="annBoth">Ambos</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="annMode" id="annNone" value="none">
+            <label class="form-check-label" for="annNone">Off</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-3">
+      <div class="col-12 d-flex justify-content-between align-items-center">
+        <div id="status" class="text-primary fw-bold small"><i class="bi bi-check-circle-fill text-success"></i> Dados prontos</div>
+        <div>
+          <button id="refreshBtn" class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-arrow-clockwise"></i> Reset</button>
+          <button id="applyFilter" class="btn btn-primary px-4"><i class="bi bi-check2-circle"></i> Atualizar Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="charts" class="grid"></div>
+
+  <footer>
+    <strong>Fonte:</strong> Times Higher Education (THE) Impact Rankings. Desenvolvido por PGI/PLAN (UFF).
+  </footer>
+</div>
+
+<script>
+(function() {
+
+  // ─── DATASET EMBUTIDO ───────────────────────────────────────────────────────
+  const RAW = [
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0,0,"56th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0,0,"56th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0,0,"56th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0,0,"56th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0,0,"56th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.66,0.72,"47th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.96,0.72,"47th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.77,0.72,"47th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.64,0.72,"47th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.55,0.72,"47th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Scholarly Output (THE)",2019,5,67,"90th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Scholarly Output (THE)",2020,12,67,"90th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Scholarly Output (THE)",2021,20,67,"90th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Scholarly Output (THE)",2022,19,67,"90th"],
+    ["Universidade Federal Fluminense","ODS 1 - No poverty","Scholarly Output (THE)",2023,11,67,"90th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.73,1.05,"46th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.38,1.05,"46th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.37,1.05,"46th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.92,1.05,"46th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.88,1.05,"46th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2019,3,29,"85th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2020,4,29,"85th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2021,8,29,"85th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2022,5,29,"85th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2023,9,29,"85th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Scholarly Output (THE)",2019,24,132,"86th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Scholarly Output (THE)",2020,21,132,"86th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Scholarly Output (THE)",2021,30,132,"86th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Scholarly Output (THE)",2022,20,132,"86th"],
+    ["Universidade Federal Fluminense","ODS 2 - Zero hunger","Scholarly Output (THE)",2023,37,132,"86th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Clinical Citations (THE)",2019,0,5,"88th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Clinical Citations (THE)",2020,3,5,"88th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Clinical Citations (THE)",2021,2,5,"88th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Clinical Citations (THE)",2022,0,5,"88th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Clinical Citations (THE)",2023,0,5,"88th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Scholarly Output (THE)",2019,247,1884,"89th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Scholarly Output (THE)",2020,389,1884,"89th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Scholarly Output (THE)",2021,497,1884,"89th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Scholarly Output (THE)",2022,380,1884,"89th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Scholarly Output (THE)",2023,371,1884,"89th"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Views Count (THE)",2019,6309,42286,"82nd"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Views Count (THE)",2020,8995,42286,"82nd"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Views Count (THE)",2021,12521,42286,"82nd"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Views Count (THE)",2022,8680,42286,"82nd"],
+    ["Universidade Federal Fluminense","ODS 3 - Good health and well-being","Views Count (THE)",2023,5781,42286,"82nd"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2019,6,26,"88th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2020,3,26,"88th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2021,7,26,"88th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2022,5,26,"88th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2023,5,26,"88th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Scholarly Output (THE)",2019,23,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Scholarly Output (THE)",2020,54,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Scholarly Output (THE)",2021,40,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Scholarly Output (THE)",2022,38,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Scholarly Output (THE)",2023,44,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Views Count (THE)",2019,1510,9755,"89th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Views Count (THE)",2020,3106,9755,"89th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Views Count (THE)",2021,1948,9755,"89th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Views Count (THE)",2022,1222,9755,"89th"],
+    ["Universidade Federal Fluminense","ODS 4 - Quality education","Views Count (THE)",2023,1969,9755,"89th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Female Co-authorship (THE)",2019,0.405,0.432,"78th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Female Co-authorship (THE)",2020,0.438,0.432,"78th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Female Co-authorship (THE)",2021,0.44,0.432,"78th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Female Co-authorship (THE)",2022,0.442,0.432,"78th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Female Co-authorship (THE)",2023,0.43,0.432,"78th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2019,0,11,"84th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2020,1,11,"84th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2021,2,11,"84th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2022,2,11,"84th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2023,6,11,"84th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Scholarly Output (THE)",2019,15,91,"89th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Scholarly Output (THE)",2020,11,91,"89th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Scholarly Output (THE)",2021,25,91,"89th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Scholarly Output (THE)",2022,23,91,"89th"],
+    ["Universidade Federal Fluminense","ODS 5 - Gender equality","Scholarly Output (THE)",2023,17,91,"89th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.96,0.83,"37th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.1,0.83,"37th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.73,0.83,"37th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.7,0.83,"37th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.75,0.83,"37th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2019,4,43,"82nd"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2020,11,43,"82nd"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2021,8,43,"82nd"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2022,10,43,"82nd"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2023,10,43,"82nd"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2019,25,202,"87th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2020,40,202,"87th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2021,40,202,"87th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2022,49,202,"87th"],
+    ["Universidade Federal Fluminense","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2023,48,202,"87th"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.91,0.89,"33rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.86,0.89,"33rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.91,0.89,"33rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.93,0.89,"33rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.82,0.89,"33rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2019,15,94,"83rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2020,18,94,"83rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2021,24,94,"83rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2022,18,94,"83rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2023,19,94,"83rd"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2019,53,354,"84th"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2020,68,354,"84th"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2021,79,354,"84th"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2022,86,354,"84th"],
+    ["Universidade Federal Fluminense","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2023,68,354,"84th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2019,8,68,"90th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2020,17,68,"90th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2021,19,68,"90th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2022,12,68,"90th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2023,12,68,"90th"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2019,37,276,"91st"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2020,56,276,"91st"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2021,70,276,"91st"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2022,57,276,"91st"],
+    ["Universidade Federal Fluminense","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2023,56,276,"91st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2019,205,957,"81st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2020,190,957,"81st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2021,219,957,"81st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2022,224,957,"81st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2023,221,957,"81st"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2019,69,455,"90th"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2020,96,455,"90th"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2021,119,455,"90th"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2022,97,455,"90th"],
+    ["Universidade Federal Fluminense","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2023,74,455,"90th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.96,0.96,"52nd"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.62,0.96,"52nd"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.9,0.96,"52nd"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.54,0.96,"52nd"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.67,0.96,"52nd"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2019,3,26,"86th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2020,5,26,"86th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2021,6,26,"86th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2022,5,26,"86th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2023,7,26,"86th"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2019,24,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2020,38,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2021,49,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2022,42,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2023,46,199,"91st"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.05,0.94,"42nd"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.13,0.94,"42nd"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.95,0.94,"42nd"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.95,0.94,"42nd"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.59,0.94,"42nd"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2019,10,65,"87th"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2020,13,65,"87th"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2021,16,65,"87th"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2022,15,65,"87th"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2023,11,65,"87th"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2019,56,327,"91st"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2020,77,327,"91st"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2021,67,327,"91st"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2022,66,327,"91st"],
+    ["Universidade Federal Fluminense","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2023,61,327,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.38,1.11,"41st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.38,1.11,"41st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.91,1.11,"41st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.06,1.11,"41st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.96,1.11,"41st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2019,16,88,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2020,18,88,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2021,26,88,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2022,17,88,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2023,11,88,"91st"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2019,47,335,"94th"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2020,67,335,"94th"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2021,89,335,"94th"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2022,79,335,"94th"],
+    ["Universidade Federal Fluminense","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2023,53,335,"94th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.03,1.14,"40th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.45,1.14,"40th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.5,1.14,"40th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.99,1.14,"40th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.73,1.14,"40th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2019,8,82,"88th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2020,14,82,"88th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2021,22,82,"88th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2022,26,82,"88th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2023,12,82,"88th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Scholarly Output (THE)",2019,41,272,"90th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Scholarly Output (THE)",2020,43,272,"90th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Scholarly Output (THE)",2021,65,272,"90th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Scholarly Output (THE)",2022,74,272,"90th"],
+    ["Universidade Federal Fluminense","ODS 13 - Climate action","Scholarly Output (THE)",2023,49,272,"90th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.48,1.1,"59th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.01,1.1,"59th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.34,1.1,"59th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.88,1.1,"59th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.87,1.1,"59th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2019,24,138,"97th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2020,26,138,"97th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2021,30,138,"97th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2022,34,138,"97th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2023,24,138,"97th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Scholarly Output (THE)",2019,61,375,"98th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Scholarly Output (THE)",2020,68,375,"98th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Scholarly Output (THE)",2021,86,375,"98th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Scholarly Output (THE)",2022,86,375,"98th"],
+    ["Universidade Federal Fluminense","ODS 14 - Life below water","Scholarly Output (THE)",2023,74,375,"98th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.68,1.4,"67th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2020,2.39,1.4,"67th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.63,1.4,"67th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.69,1.4,"67th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.73,1.4,"67th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2019,4,50,"88th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2020,11,50,"88th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2021,15,50,"88th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2022,10,50,"88th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2023,10,50,"88th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Scholarly Output (THE)",2019,34,195,"90th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Scholarly Output (THE)",2020,34,195,"90th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Scholarly Output (THE)",2021,40,195,"90th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Scholarly Output (THE)",2022,46,195,"90th"],
+    ["Universidade Federal Fluminense","ODS 15 - Life on land","Scholarly Output (THE)",2023,41,195,"90th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.59,0.75,"45th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.53,0.75,"45th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.57,0.75,"45th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.46,0.75,"45th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.29,0.75,"45th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2019,2,18,"85th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2020,3,18,"85th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2021,5,18,"85th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2022,7,18,"85th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2023,1,18,"85th"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2019,27,207,"91st"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2020,34,207,"91st"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2021,56,207,"91st"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2022,51,207,"91st"],
+    ["Universidade Federal Fluminense","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2023,39,207,"91st"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0.017,0.023,"18th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0.013,0.023,"18th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0.021,0.023,"18th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.032,0.023,"18th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0.03,0.023,"18th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2019,582,4024,"89th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2020,840,4024,"89th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2021,991,4024,"89th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2022,834,4024,"89th"],
+    ["Universidade Federal Fluminense","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2023,777,4024,"89th"],
+    // UFSM
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0,0.04,"60th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0,0.04,"60th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0,0.04,"60th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.125,0.04,"60th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0,0.04,"60th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.06,0.83,"52nd"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.43,0.83,"52nd"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.4,0.83,"52nd"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.17,0.83,"52nd"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.32,0.83,"52nd"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Scholarly Output (THE)",2019,2,25,"78th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Scholarly Output (THE)",2020,1,25,"78th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Scholarly Output (THE)",2021,6,25,"78th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Scholarly Output (THE)",2022,8,25,"78th"],
+    ["Universidade Federal de Santa Maria","ODS 1 - No poverty","Scholarly Output (THE)",2023,8,25,"78th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.12,1.02,"45th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.35,1.02,"45th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.94,1.02,"45th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.92,1.02,"45th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.84,1.02,"45th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2019,20,109,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2020,22,109,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2021,20,109,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2022,22,109,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2023,25,109,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Scholarly Output (THE)",2019,69,462,"97th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Scholarly Output (THE)",2020,91,462,"97th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Scholarly Output (THE)",2021,99,462,"97th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Scholarly Output (THE)",2022,98,462,"97th"],
+    ["Universidade Federal de Santa Maria","ODS 2 - Zero hunger","Scholarly Output (THE)",2023,105,462,"97th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Clinical Citations (THE)",2019,0,7,"89th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Clinical Citations (THE)",2020,1,7,"89th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Clinical Citations (THE)",2021,6,7,"89th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Clinical Citations (THE)",2022,0,7,"89th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Clinical Citations (THE)",2023,0,7,"89th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Scholarly Output (THE)",2019,133,959,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Scholarly Output (THE)",2020,223,959,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Scholarly Output (THE)",2021,206,959,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Scholarly Output (THE)",2022,196,959,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Scholarly Output (THE)",2023,201,959,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Views Count (THE)",2019,4331,26536,"74th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Views Count (THE)",2020,5718,26536,"74th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Views Count (THE)",2021,7725,26536,"74th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Views Count (THE)",2022,5192,26536,"74th"],
+    ["Universidade Federal de Santa Maria","ODS 3 - Good health and well-being","Views Count (THE)",2023,3570,26536,"74th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2019,4,18,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2020,1,18,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2021,7,18,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2022,3,18,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2023,3,18,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Scholarly Output (THE)",2019,39,132,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Scholarly Output (THE)",2020,17,132,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Scholarly Output (THE)",2021,23,132,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Scholarly Output (THE)",2022,16,132,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Scholarly Output (THE)",2023,37,132,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Views Count (THE)",2019,2734,7467,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Views Count (THE)",2020,1058,7467,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Views Count (THE)",2021,1335,7467,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Views Count (THE)",2022,735,7467,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 4 - Quality education","Views Count (THE)",2023,1605,7467,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Female Co-authorship (THE)",2019,0.466,0.461,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Female Co-authorship (THE)",2020,0.475,0.461,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Female Co-authorship (THE)",2021,0.468,0.461,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Female Co-authorship (THE)",2022,0.456,0.461,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Female Co-authorship (THE)",2023,0.441,0.461,"84th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2019,0,1,"57th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2020,1,1,"57th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2021,0,1,"57th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2022,0,1,"57th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2023,0,1,"57th"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Scholarly Output (THE)",2019,10,51,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Scholarly Output (THE)",2020,11,51,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Scholarly Output (THE)",2021,8,51,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Scholarly Output (THE)",2022,15,51,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 5 - Gender equality","Scholarly Output (THE)",2023,7,51,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.14,1.18,"54th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.05,1.18,"54th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.56,1.18,"54th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.05,1.18,"54th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.93,1.18,"54th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2019,17,97,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2020,22,97,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2021,25,97,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2022,16,97,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2023,17,97,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2019,55,394,"95th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2020,82,394,"95th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2021,107,394,"95th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2022,82,394,"95th"],
+    ["Universidade Federal de Santa Maria","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2023,68,394,"95th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.06,0.99,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.81,0.99,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.08,0.99,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.11,0.99,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.86,0.99,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2019,21,140,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2020,21,140,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2021,40,140,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2022,40,140,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2023,18,140,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2019,119,606,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2020,83,606,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2021,119,606,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2022,148,606,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2023,137,606,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2019,4,35,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2020,5,35,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2021,8,35,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2022,12,35,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2023,6,35,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2019,17,168,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2020,32,168,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2021,38,168,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2022,43,168,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2023,38,168,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2019,202,1046,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2020,252,1046,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2021,254,1046,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2022,238,1046,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2023,232,1046,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2019,54,348,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2020,49,348,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2021,73,348,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2022,89,348,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2023,83,348,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.63,0.58,"34th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.59,0.58,"34th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.54,0.58,"34th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.75,0.58,"34th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.4,0.58,"34th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2019,1,15,"80th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2020,0,15,"80th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2021,2,15,"80th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2022,7,15,"80th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2023,5,15,"80th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2019,19,104,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2020,12,104,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2021,19,104,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2022,26,104,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2023,28,104,"85th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.57,0.81,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.67,0.81,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.97,0.81,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.15,0.81,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.39,0.81,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2019,4,35,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2020,4,35,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2021,9,35,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2022,15,35,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2023,3,35,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2019,34,158,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2020,25,158,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2021,34,158,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2022,44,158,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2023,21,158,"81st"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.41,1.13,"42nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.1,1.13,"42nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.17,1.13,"42nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.07,1.13,"42nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.94,1.13,"42nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2019,17,96,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2020,18,96,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2021,28,96,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2022,21,96,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2023,12,96,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2019,53,319,"93rd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2020,56,319,"93rd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2021,83,319,"93rd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2022,67,319,"93rd"],
+    ["Universidade Federal de Santa Maria","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2023,60,319,"93rd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.09,1.02,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.93,1.02,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.1,1.02,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.09,1.02,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.89,1.02,"35th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2019,7,48,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2020,13,48,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2021,9,48,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2022,13,48,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2023,6,48,"82nd"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Scholarly Output (THE)",2019,35,192,"86th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Scholarly Output (THE)",2020,45,192,"86th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Scholarly Output (THE)",2021,35,192,"86th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Scholarly Output (THE)",2022,44,192,"86th"],
+    ["Universidade Federal de Santa Maria","ODS 13 - Climate action","Scholarly Output (THE)",2023,33,192,"86th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.03,0.9,"49th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.85,0.9,"49th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.99,0.9,"49th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.72,0.9,"49th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.83,0.9,"49th"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2019,13,64,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2020,18,64,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2021,17,64,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2022,9,64,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2023,7,64,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Scholarly Output (THE)",2019,34,173,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Scholarly Output (THE)",2020,44,173,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Scholarly Output (THE)",2021,44,173,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Scholarly Output (THE)",2022,25,173,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 14 - Life below water","Scholarly Output (THE)",2023,26,173,"91st"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.71,0.76,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.7,0.76,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.74,0.76,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.65,0.76,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.98,0.76,"38th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2019,14,75,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2020,14,75,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2021,22,75,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2022,15,75,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2023,10,75,"92nd"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Scholarly Output (THE)",2019,63,368,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Scholarly Output (THE)",2020,77,368,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Scholarly Output (THE)",2021,78,368,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Scholarly Output (THE)",2022,72,368,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 15 - Life on land","Scholarly Output (THE)",2023,78,368,"96th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.58,0.39,"28th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.39,0.39,"28th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.36,0.39,"28th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.33,0.39,"28th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.39,0.39,"28th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2019,1,4,"67th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2020,1,4,"67th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2021,0,4,"67th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2022,2,4,"67th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2023,0,4,"67th"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2019,11,87,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2020,21,87,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2021,15,87,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2022,23,87,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2023,17,87,"83rd"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0.026,0.035,"26th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0.034,0.035,"26th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0.046,0.035,"26th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.032,0.035,"26th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0.036,0.035,"26th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2019,578,3363,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2020,650,3363,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2021,714,3363,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2022,720,3363,"87th"],
+    ["Universidade Federal de Santa Maria","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2023,701,3363,"87th"],
+    // UFRJ
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Clinical Citations (THE)",2019,2,6,"88th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Clinical Citations (THE)",2020,1,6,"88th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Clinical Citations (THE)",2021,3,6,"88th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Clinical Citations (THE)",2022,0,6,"88th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Clinical Citations (THE)",2023,0,6,"88th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Scholarly Output (THE)",2019,686,4447,"96th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Scholarly Output (THE)",2020,975,4447,"96th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Scholarly Output (THE)",2021,1041,4447,"96th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Scholarly Output (THE)",2022,920,4447,"96th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Scholarly Output (THE)",2023,825,4447,"96th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Views Count (THE)",2019,20368,115056,"93rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Views Count (THE)",2020,26600,115056,"93rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Views Count (THE)",2021,35179,115056,"93rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Views Count (THE)",2022,16957,115056,"93rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 3 - Good health and well-being","Views Count (THE)",2023,15952,115056,"93rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2019,15,120,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2020,22,120,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2021,33,120,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2022,30,120,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2023,20,120,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2019,66,464,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2020,93,464,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2021,119,464,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2022,95,464,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2023,91,464,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.82,0.86,"38th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.9,0.86,"38th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.85,0.86,"38th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.54,0.86,"38th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.2,0.86,"38th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2019,31,152,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2020,40,152,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2021,42,152,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2022,13,152,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2023,26,152,"95th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2019,144,752,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2020,178,752,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2021,157,752,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2022,141,752,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2023,132,752,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2019,1,1.45,"57th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2020,2.77,1.45,"57th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.18,1.45,"57th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2022,1,1.45,"57th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.37,1.45,"57th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2019,33,167,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2020,28,167,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2021,38,167,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2022,33,167,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2023,35,167,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2019,93,541,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2020,103,541,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2021,120,541,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2022,116,541,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2023,109,541,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.48,1.64,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.51,1.64,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2021,2.13,1.64,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.33,1.64,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.71,1.64,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2019,49,294,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2020,51,294,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2021,74,294,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2022,54,294,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2023,66,294,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Scholarly Output (THE)",2019,119,681,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Scholarly Output (THE)",2020,127,681,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Scholarly Output (THE)",2021,146,681,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Scholarly Output (THE)",2022,153,681,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 13 - Climate action","Scholarly Output (THE)",2023,136,681,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.05,1.01,"54th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.04,1.01,"54th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.21,1.01,"54th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.81,1.01,"54th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.97,1.01,"54th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2019,42,200,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2020,36,200,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2021,44,200,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2022,38,200,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2023,40,200,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Scholarly Output (THE)",2019,106,605,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Scholarly Output (THE)",2020,122,605,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Scholarly Output (THE)",2021,129,605,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Scholarly Output (THE)",2022,132,605,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 14 - Life below water","Scholarly Output (THE)",2023,116,605,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.42,1.31,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.41,1.31,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.68,1.31,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.93,1.31,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.11,1.31,"63rd"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2019,26,178,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2020,36,178,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2021,40,178,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2022,33,178,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2023,43,178,"98th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Scholarly Output (THE)",2019,106,713,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Scholarly Output (THE)",2020,146,713,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Scholarly Output (THE)",2021,164,713,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Scholarly Output (THE)",2022,135,713,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 15 - Life on land","Scholarly Output (THE)",2023,162,713,"99th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0.025,0.034,"26th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0.036,0.034,"26th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0.033,0.034,"26th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.041,0.034,"26th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0.037,0.034,"26th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2019,1546,8934,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2020,1891,8934,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2021,2008,8934,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2022,1794,8934,"97th"],
+    ["Universidade Federal do Rio de Janeiro","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2023,1695,8934,"97th"],
+    // UFMG
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Scholarly Output (THE)",2019,27,153,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Scholarly Output (THE)",2020,29,153,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Scholarly Output (THE)",2021,31,153,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Scholarly Output (THE)",2022,35,153,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Scholarly Output (THE)",2023,31,153,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.68,1.04,"62nd"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.6,1.04,"62nd"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2021,2.59,1.04,"62nd"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.58,1.04,"62nd"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.72,1.04,"62nd"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0,0.026,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0,0.026,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0.065,0.026,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.057,0.026,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 1 - No poverty","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0,0.026,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Scholarly Output (THE)",2019,56,364,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Scholarly Output (THE)",2020,62,364,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Scholarly Output (THE)",2021,74,364,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Scholarly Output (THE)",2022,84,364,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Scholarly Output (THE)",2023,88,364,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2019,4.28,2.56,"88th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2020,6.87,2.56,"88th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.1,2.56,"88th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.4,2.56,"88th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.75,2.56,"88th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2019,19,80,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2020,15,80,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2021,16,80,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2022,22,80,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 2 - Zero hunger","Output in Top 10% Journals (THE)",2023,8,80,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Scholarly Output (THE)",2019,770,4863,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Scholarly Output (THE)",2020,993,4863,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Scholarly Output (THE)",2021,1143,4863,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Scholarly Output (THE)",2022,980,4863,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Scholarly Output (THE)",2023,977,4863,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Views Count (THE)",2019,35294,171509,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Views Count (THE)",2020,48662,171509,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Views Count (THE)",2021,37815,171509,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Views Count (THE)",2022,23381,171509,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Views Count (THE)",2023,26357,171509,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Clinical Citations (THE)",2019,6,17,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Clinical Citations (THE)",2020,6,17,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Clinical Citations (THE)",2021,5,17,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Clinical Citations (THE)",2022,0,17,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 3 - Good health and well-being","Clinical Citations (THE)",2023,0,17,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Scholarly Output (THE)",2019,49,315,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Scholarly Output (THE)",2020,54,315,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Scholarly Output (THE)",2021,53,315,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Scholarly Output (THE)",2022,83,315,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Scholarly Output (THE)",2023,76,315,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2019,7,33,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2020,7,33,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2021,9,33,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2022,5,33,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Output in Top 10% Journals (THE)",2023,5,33,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Views Count (THE)",2019,4772,16679,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Views Count (THE)",2020,4001,16679,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Views Count (THE)",2021,3521,16679,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Views Count (THE)",2022,2728,16679,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 4 - Quality education","Views Count (THE)",2023,1657,16679,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Scholarly Output (THE)",2019,31,278,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Scholarly Output (THE)",2020,62,278,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Scholarly Output (THE)",2021,61,278,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Scholarly Output (THE)",2022,59,278,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Scholarly Output (THE)",2023,65,278,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2019,5,36,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2020,3,36,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2021,3,36,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2022,10,36,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Output in Top 10% Journals (THE)",2023,15,36,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Female Co-authorship (THE)",2019,0.487,0.485,"86th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Female Co-authorship (THE)",2020,0.482,0.485,"86th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Female Co-authorship (THE)",2021,0.48,0.485,"86th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Female Co-authorship (THE)",2022,0.489,0.485,"86th"],
+    ["Universidade Federal de Minas Gerais","ODS 5 - Gender equality","Female Co-authorship (THE)",2023,0.487,0.485,"86th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2019,124,713,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2020,151,713,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2021,161,713,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2022,155,713,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Scholarly Output (THE)",2023,122,713,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.21,1.47,"69th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2020,3.36,1.47,"69th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.88,1.47,"69th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.89,1.47,"69th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.91,1.47,"69th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2019,37,239,"98th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2020,49,239,"98th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2021,60,239,"98th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2022,45,239,"98th"],
+    ["Universidade Federal de Minas Gerais","ODS 6 - Clean water and sanitation","Output in Top 10% Journals (THE)",2023,48,239,"98th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2019,118,567,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2020,111,567,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2021,102,567,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2022,98,567,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Scholarly Output (THE)",2023,138,567,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.17,1.11,"45th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.84,1.11,"45th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.95,1.11,"45th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2022,1,1.11,"45th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.47,1.11,"45th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2019,31,168,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2020,37,168,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2021,39,168,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2022,28,168,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 7 - Affordable and clean energy","Output in Top 10% Journals (THE)",2023,33,168,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2019,59,356,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2020,73,356,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2021,61,356,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2022,76,356,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Scholarly Output (THE)",2023,87,356,"94th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2019,9,63,"89th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2020,19,63,"89th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2021,10,63,"89th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2022,11,63,"89th"],
+    ["Universidade Federal de Minas Gerais","ODS 8 - Decent work and economic growth","Output in Top 10% Journals (THE)",2023,14,63,"89th"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2019,84,517,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2020,107,517,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2021,103,517,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2022,104,517,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Scholarly Output (THE)",2023,119,517,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2019,830,3798,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2020,846,3798,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2021,920,3798,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2022,884,3798,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 9 - Industry, innovation and infrastructure","Patent-Citations (THE)",2023,853,3798,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2019,61,466,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2020,82,466,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2021,101,466,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2022,100,466,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Scholarly Output (THE)",2023,122,466,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.31,1.18,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.97,1.18,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.61,1.18,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.02,1.18,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.01,1.18,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2019,11,74,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2020,13,74,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2021,18,74,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2022,12,74,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 10 - Reduced inequalities","Output in Top 10% Journals (THE)",2023,20,74,"95th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2019,111,647,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2020,114,647,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2021,139,647,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2022,124,647,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Scholarly Output (THE)",2023,159,647,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.88,0.9,"40th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2020,0.99,0.9,"40th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.98,0.9,"40th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.78,0.9,"40th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.89,0.9,"40th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2019,21,170,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2020,29,170,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2021,48,170,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2022,29,170,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 11 - Sustainable cities and communities","Output in Top 10% Journals (THE)",2023,43,170,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2019,60,315,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2020,53,315,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2021,63,315,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2022,66,315,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Scholarly Output (THE)",2023,73,315,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.14,1.58,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2020,4.7,1.58,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.17,1.58,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.83,1.58,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.71,1.58,"63rd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2019,17,94,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2020,19,94,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2021,19,94,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2022,18,94,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 12 - Responsible consumption and production","Output in Top 10% Journals (THE)",2023,21,94,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Scholarly Output (THE)",2019,48,304,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Scholarly Output (THE)",2020,56,304,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Scholarly Output (THE)",2021,64,304,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Scholarly Output (THE)",2022,77,304,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Scholarly Output (THE)",2023,59,304,"91st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.56,1.4,"51st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.17,1.4,"51st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.69,1.4,"51st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.45,1.4,"51st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.12,1.4,"51st"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2019,21,106,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2020,18,106,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2021,28,106,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2022,22,106,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 13 - Climate action","Output in Top 10% Journals (THE)",2023,17,106,"90th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Scholarly Output (THE)",2019,37,199,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Scholarly Output (THE)",2020,41,199,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Scholarly Output (THE)",2021,34,199,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Scholarly Output (THE)",2022,48,199,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Scholarly Output (THE)",2023,39,199,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.12,1.08,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.4,1.08,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.06,1.08,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.92,1.08,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.92,1.08,"58th"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2019,20,79,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2020,15,79,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2021,13,79,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2022,19,79,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 14 - Life below water","Output in Top 10% Journals (THE)",2023,12,79,"93rd"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Scholarly Output (THE)",2019,133,675,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Scholarly Output (THE)",2020,153,675,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Scholarly Output (THE)",2021,146,675,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Scholarly Output (THE)",2022,120,675,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Scholarly Output (THE)",2023,123,675,"99th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2019,1.66,1.36,"65th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2020,1.1,1.36,"65th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2021,1.28,1.36,"65th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2022,1.25,1.36,"65th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Field-Weighted Citation Impact - 5 Year (THE)",2023,1.53,1.36,"65th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2019,48,173,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2020,41,173,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2021,30,173,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2022,23,173,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 15 - Life on land","Output in Top 10% Journals (THE)",2023,31,173,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2019,59,382,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2020,76,382,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2021,77,382,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2022,93,382,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Scholarly Output (THE)",2023,77,382,"96th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2019,0.69,2.42,"87th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2020,9.42,2.42,"87th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2021,0.82,2.42,"87th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2022,0.79,2.42,"87th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Field-Weighted Citation Impact - 5 Year (THE)",2023,0.48,2.42,"87th"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2019,8,47,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2020,8,47,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2021,7,47,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2022,12,47,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 16 - Peace, justice and strong institutions","Output in Top 10% Journals (THE)",2023,12,47,"92nd"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2019,1447,8620,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2020,1749,8620,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2021,1900,8620,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2022,1758,8620,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Scholarly Output (THE)",2023,1766,8620,"97th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2019,0.036,0.048,"35th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2020,0.044,0.048,"35th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2021,0.045,0.048,"35th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2022,0.057,0.048,"35th"],
+    ["Universidade Federal de Minas Gerais","ODS 17 - Partnerships for the goals","Co-authorship with Low or Lower-middle Income Countries (THE)",2023,0.057,0.048,"35th"],
+  ];
+
+  const UFF = "Universidade Federal Fluminense";
+  const chartsDiv = document.getElementById("charts");
+  const compareSelect = document.getElementById("compareSelect");
+  const odsSelect = document.getElementById("odsSelect");
+  const minYear = document.getElementById("minYear");
+  const maxYear = document.getElementById("maxYear");
+  const statusEl = document.getElementById("status");
+
+  let annotationMode = "uff";
+  let chartType = "line";
+
+  // Build structured rows
+  const rows = RAW.map(r => ({
+    uni: r[0], ods: r[1], indicator: r[2], year: r[3], value: r[4], overall: r[5], percentile: r[6]
+  }));
+
+  // Populate university select (excluding UFF)
+  const unis = [...new Set(rows.map(r => r.uni))].filter(u => u !== UFF).sort();
+  unis.forEach(u => compareSelect.add(new Option(u, u)));
+
+  // Populate ODS select
+  const odsList = [...new Set(rows.map(r => r.ods))].sort((a,b) => {
+    const na = parseInt(a.replace(/\D/g,'')), nb = parseInt(b.replace(/\D/g,''));
+    return na - nb;
+  });
+  odsList.forEach(o => odsSelect.add(new Option(o, o)));
+
+  // Populate years
+  const years = [2019,2020,2021,2022,2023];
+  years.forEach(y => { minYear.add(new Option(y,y)); maxYear.add(new Option(y,y)); });
+  minYear.value = 2019; maxYear.value = 2023;
+
+  // Mann-Kendall
+  function mannKendall(data) {
+    const n = data.length;
+    if (n < 3) return { text: "N/A", p: null, trend: "" };
+    let S = 0;
+    for (let k = 0; k < n-1; k++) for (let j = k+1; j < n; j++) S += Math.sign(data[j]-data[k]);
+    const varS = (n*(n-1)*(2*n+5))/18;
+    let Z = 0;
+    if (S > 0) Z = (S-1)/Math.sqrt(varS);
+    else if (S < 0) Z = (S+1)/Math.sqrt(varS);
+    const p = 2*(1-jStat.normal.cdf(Math.abs(Z),0,1));
+    let text = "Estável", trendClass = "";
+    if (p < 0.10) {
+      if (S > 0) { text = "Crescente ↗"; trendClass = "trend-up"; }
+      else { text = "Decrescente ↘"; trendClass = "trend-down"; }
+    }
+    return { text, p, trend: trendClass };
+  }
+
+  function hypothesisTest(s1, s2) {
+    if (s1.length < 3 || s2.length < 3) return null;
+    const var1 = jStat.variance(s1,true), var2 = jStat.variance(s2,true);
+    const n1 = s1.length, n2 = s2.length;
+    const mean1 = jStat.mean(s1), mean2 = jStat.mean(s2);
+    const pValF = 2*(1-jStat.centralF.cdf((var1>var2?var1/var2:var2/var1), n1-1, n2-1));
+    let pValT, testName;
+    if (pValF > 0.05) {
+      const pooledVar = ((n1-1)*var1+(n2-1)*var2)/(n1+n2-2);
+      const tStat = (mean1-mean2)/Math.sqrt(pooledVar*(1/n1+1/n2));
+      pValT = 2*(1-jStat.studentt.cdf(Math.abs(tStat),n1+n2-2));
+      testName = "t de Student";
+    } else {
+      const tStat = (mean1-mean2)/Math.sqrt(var1/n1+var2/n2);
+      const df = Math.pow(var1/n1+var2/n2,2)/((Math.pow(var1/n1,2)/(n1-1))+(Math.pow(var2/n2,2)/(n2-1)));
+      pValT = 2*(1-jStat.studentt.cdf(Math.abs(tStat),df));
+      testName = "Welch";
+    }
+    return { pValT, significant: pValT < 0.05, testName };
+  }
+
+  function render(compareTo) {
+    chartsDiv.innerHTML = "";
+    const hasCmp = compareTo && compareTo !== UFF;
+    const startY = parseInt(minYear.value);
+    const endY = parseInt(maxYear.value);
+    const yrRange = [];
+    for (let y = startY; y <= endY; y++) yrRange.push(y);
+
+    const selectedOds = odsSelect.value;
+
+    // Get combos of ODS + indicator present for UFF
+    const combos = new Map();
+    rows.forEach(r => {
+      if (r.uni !== UFF) return;
+      if (selectedOds !== "all" && r.ods !== selectedOds) return;
+      const key = r.ods + "||" + r.indicator;
+      if (!combos.has(key)) combos.set(key, { ods: r.ods, indicator: r.indicator });
+    });
+
+    if (combos.size === 0) {
+      chartsDiv.innerHTML = '<div class="col-12 text-center text-muted py-5">Nenhum dado disponível para esta seleção.</div>';
+      return;
+    }
+
+    combos.forEach(({ ods, indicator }) => {
+      const uffPts = [], cmpPts = [];
+
+      yrRange.forEach(y => {
+        const ru = rows.find(r => r.uni === UFF && r.ods === ods && r.indicator === indicator && r.year === y);
+        uffPts.push({ x: y, y: ru ? ru.value : null });
+        if (hasCmp) {
+          const rc = rows.find(r => r.uni === compareTo && r.ods === ods && r.indicator === indicator && r.year === y);
+          cmpPts.push({ x: y, y: rc ? rc.value : null });
+        }
+      });
+
+      const uffVals = uffPts.filter(d => d.y !== null).map(d => d.y);
+      const cmpVals = cmpPts.filter(d => d.y !== null).map(d => d.y);
+
+      // Get UFF percentile for this ODS/indicator
+      const uffSample = rows.find(r => r.uni === UFF && r.ods === ods && r.indicator === indicator);
+      const percentileLabel = uffSample ? uffSample.percentile : "";
+
+      const card = document.createElement("div");
+      card.className = "chart-card";
+      card.innerHTML = `
+        <div class="chart-header">
+          <div class="d-flex align-items-center justify-content-between">
+            <h3 class="chart-title">${indicator}</h3>
+            <span class="ods-badge">${ods}</span>
+          </div>
+          ${percentileLabel ? `<div class="chart-subtitle">UFF: ${percentileLabel} percentil</div>` : ""}
+        </div>`;
+
+      const body = document.createElement("div");
+      body.className = "chart-body";
+      const plotDiv = document.createElement("div");
+      plotDiv.style.height = "260px";
+      body.appendChild(plotDiv);
+      card.appendChild(body);
+      chartsDiv.appendChild(card);
+
+      const layout = {
+        margin: { t: 20, l: 50, r: 20, b: 35 },
+        showlegend: true,
+        legend: { orientation: "h", x: 0, y: 1.18, font: { size: 11 } },
+        yaxis: { gridcolor: "#eee", zeroline: false },
+        xaxis: { dtick: 1, gridcolor: "#eee", tickformat: "d" },
+        plot_bgcolor: "white",
+        paper_bgcolor: "white",
+        font: { family: "Roboto, sans-serif", size: 11 }
+      };
+
+      if (chartType === "line") {
+        const traces = [{
+          x: uffPts.map(d => d.x), y: uffPts.map(d => d.y),
+          mode: "lines+markers", name: "UFF",
+          line: { color: "#004a8e", width: 2.5 },
+          marker: { size: 6 },
+          connectgaps: false
+        }];
+        if (hasCmp && cmpVals.length > 0) {
+          traces.push({
+            x: cmpPts.map(d => d.x), y: cmpPts.map(d => d.y),
+            mode: "lines+markers", name: compareTo.replace("Universidade Federal ", "UF ").replace("Universidade Federal de ","UF "),
+            line: { color: "#e65100", width: 2, dash: "dot" },
+            marker: { size: 6, symbol: "diamond" },
+            connectgaps: false
+          });
+        }
+
+        const anns = [];
+        const addAnn = (pts, col) => pts.forEach(d => {
+          if (d.y !== null && (annotationMode === "both" || (annotationMode === "uff" && col === "#004a8e"))) {
+            anns.push({ x: d.x, y: d.y, text: String(d.y), showarrow: false, yshift: 12, font: { color: col, size: 9, weight: "bold" } });
+          }
+        });
+        addAnn(uffPts, "#004a8e");
+        if (hasCmp) addAnn(cmpPts, "#e65100");
+        layout.annotations = anns;
+
+        Plotly.newPlot(plotDiv, traces, layout, { responsive: true, displaylogo: false, modeBarButtonsToRemove: ['select2d','lasso2d'] });
+
+        const mk = mannKendall(uffVals);
+        const footer = document.createElement("div");
+        footer.className = "stats-footer";
+        footer.innerHTML = `Tendência UFF: <span class="${mk.trend}">${mk.text}</span>${mk.p !== null ? ` (p=${mk.p.toFixed(3)})` : ""}`;
+        card.appendChild(footer);
+
+      } else {
+        const traces = [{ y: uffVals, type: "box", name: "UFF", marker: { color: "#004a8e" }, boxmean: true }];
+        if (hasCmp && cmpVals.length > 0) {
+          traces.push({ y: cmpVals, type: "box",
+            name: compareTo.replace("Universidade Federal ","UF ").replace("Universidade Federal de ","UF "),
+            marker: { color: "#e65100" }, boxmean: true });
+        }
+        Plotly.newPlot(plotDiv, traces, layout, { responsive: true, displaylogo: false });
+
+        if (hasCmp && uffVals.length > 2 && cmpVals.length > 2) {
+          const stats = hypothesisTest(uffVals, cmpVals);
+          if (stats) {
+            const footer = document.createElement("div");
+            footer.className = "stats-footer";
+            const badge = stats.significant
+              ? `<span class="stat-badge badge-sig">Diferença Sig. (p&lt;0.05)</span>`
+              : `<span class="stat-badge badge-not-sig">Não Significativo</span>`;
+            footer.innerHTML = `<strong>${stats.testName}</strong> | p: ${stats.pValT.toFixed(4)} ${badge}`;
+            card.appendChild(footer);
+          }
+        }
+      }
+    });
+  }
+
+  // ─── EVENT LISTENERS ────────────────────────────────────────────────────────
+  compareSelect.onchange = e => render(e.target.value);
+  odsSelect.onchange = () => render(compareSelect.value);
+  minYear.onchange = () => render(compareSelect.value);
+  maxYear.onchange = () => render(compareSelect.value);
+  document.getElementById("applyFilter").onclick = () => render(compareSelect.value);
+  document.getElementById("refreshBtn").onclick = () => location.reload();
+  document.querySelectorAll("input[name='annMode']").forEach(r => r.onchange = e => { annotationMode = e.target.value; render(compareSelect.value); });
+  document.querySelectorAll("input[name='chartType']").forEach(r => r.onchange = e => { chartType = e.target.value; render(compareSelect.value); });
+
+  render();
+})();
+</script>
+</body>
+</html>
