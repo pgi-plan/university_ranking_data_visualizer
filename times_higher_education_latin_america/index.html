@@ -101,6 +101,32 @@
       color: white;
     }
 
+    /* Note Card */
+    .note-card {
+      background: #e0f7fa;
+      border-left: 4px solid var(--primary-light);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 0.9rem;
+      color: #00474f;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .note-card .bi {
+      color: var(--primary-color);
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .note-card strong {
+      color: var(--primary-color);
+    }
+
     /* Grid Layout */
     .grid {
       display: grid;
@@ -292,6 +318,17 @@
               Dashboard</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <i class="bi bi-info-circle-fill"></i>
+      <div>
+        <strong>Nota sobre a edição 2026:</strong> A ausência de informações para o ano de 2025 nos gráficos abaixo decorre de uma alteração na metodologia de nomenclatura
+        adotada pelo Ranking Universitário da América Latina, que passou a seguir o mesmo ciclo anual de dados do Ranking
+        Universitário Mundial. Em função desse alinhamento, a edição de 2025 foi denominada como edição de 2026, o que gera um
+        aparente intervalo na série histórica apresentada. Ressalta-se, contudo, que não houve descontinuidade na coleta ou na
+        divulgação dos dados desde a edição inaugural, em 2016.
       </div>
     </div>
 
